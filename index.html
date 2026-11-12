@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=4.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="theme-color" id="meta-theme-color" content="#432815">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Okumapp</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%235c3a21'/%3E%3Cstop offset='100%25' stop-color='%23331d0e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='512' height='512' fill='url(%23bg)'/%3E%3Cg fill='none' stroke='%23f7efe5' stroke-width='22' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M145 215 h185 v95 c0 55 -40 95 -92.5 95 s-92.5 -40 -92.5 -95 z' fill='%23f7efe5' fill-opacity='0.12'/%3E%3Cpath d='M330 235 h32 c26 0 44 18 44 42 s-18 42 -44 42 h-32'/%3E%3Cpath d='M115 415 h245'/%3E%3Cpath d='M195 165 c0 -22 18 -26 18 -48' stroke='%23d9822b' stroke-width='16'/%3E%3Cpath d='M240 155 c0 -22 18 -26 18 -48' stroke='%23d9822b' stroke-width='16'/%3E%3Cpath d='M285 165 c0 -22 18 -26 18 -48' stroke='%23d9822b' stroke-width='16'/%3E%3C/g%3E%3C/svg%3E">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --text: #1c1c1c;
+      --card: #ffffff;
+      --border: rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+    body, html {
+      width: 100%; height: 100%; height: 100dvh; overflow: hidden;
+      overscroll-behavior-y: none;
+      font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg); color: var(--text);
+      user-select: none;
+    }
+
+    /* KİLİT EKRANI */
+    #lock-screen {
+      position: fixed; inset: 0; background: #111; color: #fff;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 9999; padding: 24px; text-align: center;
+    }
+    #lock-screen h2 { font-size: 22px; margin-bottom: 8px; font-weight: 600; }
+    #lock-screen p { font-size: 14px; color: #aaa; margin-bottom: 20px; }
+    #lock-input {
+      width: 100%; max-width: 250px; padding: 14px; font-size: 18px;
+      text-align: center; border-radius: 12px; border: 1px solid #333;
+      background: #222; color: #fff; margin-bottom: 12px; outline: none;
+    }
+    #lock-btn {
+      width: 100%; max-width: 250px; padding: 14px; font-size: 16px;
+      border-radius: 12px; border: none; background: #0a84ff; color: #fff; font-weight: 600;
+    }
+    #lock-error { color: #ff453a; font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+    /* KÜTÜPHANE ANA EKRANI */
+    #library-view {
+      width: 100%; height: 100%; display: flex; flex-direction: column;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      background: linear-gradient(180deg, #e8dfd1 0%, #d8ccb8 100%);
+    }
+    .lib-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 16px;
+      background: linear-gradient(180deg, #5c3a21 0%, #432815 100%);
+      color: #f7efe5;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+      height: 48px; flex-shrink: 0; z-index: 10;
+    }
+    .lib-header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.3px; }
+    .add-btn {
+      background: #d9822b; color: #fff; border: none; padding: 6px 14px;
+      border-radius: 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+    }
+    #file-input { display: none; }
+
+    .shelves-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+    .shelf-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      border-bottom: 2px solid #8c6239;
+    }
+    .shelf-section:last-child {
+      border-bottom: none;
+    }
+    .section-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 14px;
+      background: rgba(67, 40, 21, 0.88);
+      color: #f5ebd6;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.18);
+    }
+    .section-count {
+      background: rgba(255,255,255,0.16);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* 3 SÜTUNLU RAF (GALAXY A34 6.6" OPTİMİZASYONU) */
+    .book-grid {
+      flex: 1;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      padding: 10px 12px 12px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      column-gap: 14px;
+      row-gap: 12px;
+      align-content: start;
+    }
+    @media (min-width: 540px) {
+      .book-grid {
+        grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+      }
+    }
+
+    .book-card {
+      display: flex; flex-direction: column; align-items: center;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .cover-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 2 / 2.7;
+      border-radius: 4px 6px 6px 4px;
+      overflow: hidden;
+      background: #ffffff;
+      box-shadow:
+        -2px 3px 6px rgba(0,0,0,0.32),
+        inset 2px 0 3px rgba(255,255,255,0.4),
+        inset -1px 0 2px rgba(0,0,0,0.2);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2;
+    }
+
+    .book-cover {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      background: #fff;
+      display: block;
+    }
+
+    .book-cover-fallback {
+      width: 100%; height: 100%;
+      background: linear-gradient(135deg, #2c3e50, #4a6572);
+      color: #fff; font-size: 11px; text-align: center; padding: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; line-height: 1.25; word-break: break-word;
+    }
+
+    /* ENTEGRE ALTIN KUPA BAŞARI ROZETİ */
+    .trophy-badge {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2b1d0e, #4a3219);
+      border: 1.5px solid #ffd54f;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 4;
+    }
+
+    .wood-shelf {
+      width: calc(100% + 14px);
+      height: 7px;
+      margin-top: -2px;
+      background: linear-gradient(180deg, #9c6638 0%, #7a4b24 55%, #4f2f14 100%);
+      border-radius: 2px;
+      box-shadow: 0 3px 5px rgba(0,0,0,0.3);
+      z-index: 1;
+    }
+
+    .format-badge {
+      position: absolute; bottom: 3px; left: 3px;
+      background: rgba(0,0,0,0.75); color: #fff;
+      font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .progress-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .progress-track {
+      flex: 1;
+      height: 4px;
+      background: rgba(67, 40, 21, 0.18);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #2b7a78, #0a84ff);
+      border-radius: 99px;
+      transition: width 0.3s ease;
+    }
+    .progress-fill.done {
+      background: linear-gradient(90deg, #2e7d32, #4caf50);
+    }
+    .progress-fraction {
+      font-size: 9px;
+      font-weight: 700;
+      color: #3e2714;
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    .book-info {
+      width: 100%;
+      padding-top: 3px;
+      text-align: center;
+    }
+    .book-title {
+      font-size: 10.5px; font-weight: 600; line-height: 1.2; color: #2b1d12;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .reread-btn {
+      margin-top: 4px;
+      background: #5c3a21;
+      color: #f7efe5;
+      border: none;
+      border-radius: 8px;
+      padding: 3px 8px;
+      font-size: 9px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    }
+    .reread-btn:active { background: #d9822b; }
+
+    .del-btn {
+      position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.7);
+      color: #fff; border: none; width: 18px; height: 18px; border-radius: 50%;
+      font-size: 10px; display: flex; align-items: center; justify-content: center;
+      z-index: 5;
+    }
+    .empty-msg {
+      grid-column: 1 / -1; text-align: center; padding: 24px 16px; color: #6e5641; font-size: 12.5px; line-height: 1.45;
+    }
+
+    /* EN ALT KALICI İSTATİSTİK BANDI */
+    .stats-footer {
+      flex-shrink: 0;
+      background: linear-gradient(180deg, #4a2d18 0%, #331e0f 100%);
+      color: #f5ebd6;
+      padding: 8px 16px;
+      border-top: 2px solid #8c6239;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 10;
+    }
+    .stat-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .stat-line:first-child {
+      color: #e6d5b8;
+      font-size: 11.5px;
+    }
+    .stat-num {
+      background: rgba(217, 130, 43, 0.28);
+      border: 1px solid rgba(255, 213, 79, 0.35);
+      color: #ffd54f;
+      padding: 1px 9px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    /* OKUMA EKRANI (GALAXY A34 ÇENTİK & HAREKET ÇUBUĞU UYUMLU) */
+    #reader-view {
+      position: fixed;
+      inset: 0;
+      width: 100%; height: 100dvh;
+      display: none; flex-direction: column;
+      background: var(--bg); color: var(--text);
+      padding-top: max(12px, env(safe-area-inset-top));
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+      z-index: 100;
+      overscroll-behavior-y: none;
+    }
+    #epub-viewer {
+      width: 100%; flex: 1; min-height: 0; padding: 4px 6px;
+    }
+    #pdf-viewer {
+      width: 100%; flex: 1; min-height: 0;
+      overflow: auto;
+      overscroll-behavior-y: contain;
+      touch-action: pan-x pan-y pinch-zoom;
+      padding: 6px 8px 14px;
+      font-size: 18px; line-height: 1.45;
+      display: none;
+    }
+    .reflow-text-box {
+      width: 100%;
+      padding: 4px 6px 18px;
+      -webkit-hyphens: auto;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      word-break: normal;
+    }
+    #pdf-canvas-wrap {
+      width: 100%; min-height: 100%;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    #pdf-canvas {
+      display: block;
+    }
+
+    /* GÖRÜNMEZ DOKUNMA BÖLGELERİ */
+    .tap-zone { position: fixed; z-index: 150; }
+    #tap-top { top: 0; left: 0; right: 0; height: 14%; }
+    #tap-center { top: 34%; left: 30%; right: 30%; bottom: 34%; }
+    #tap-left { top: 14%; left: 0; width: 15%; bottom: 0; }
+    #tap-right { top: 14%; right: 0; width: 15%; bottom: 0; }
+
+    /* ÜST VE ALT AYAR MENÜLERİ */
+    .reader-bar {
+      position: fixed; left: 0; right: 0; background: rgba(24,24,24,0.97);
+      color: #fff; z-index: 200; transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+      will-change: transform;
+      backdrop-filter: blur(8px);
+    }
+    #top-bar {
+      top: 0; padding: calc(max(12px, env(safe-area-inset-top)) + 6px) 14px 12px;
+      display: flex; align-items: center; justify-content: space-between;
+      transform: translate3d(0, -105%, 0);
+    }
+    #top-bar.open { transform: translate3d(0, 0, 0); }
+    #bottom-bar {
+      bottom: 0; padding: 12px 16px calc(max(12px, env(safe-area-inset-bottom)) + 10px);
+      transform: translate3d(0, 105%, 0);
+    }
+    #bottom-bar.open { transform: translate3d(0, 0, 0); }
+
+    .bar-btn {
+      background: none; border: none; color: #fff; font-size: 15px; font-weight: 600; padding: 6px 8px;
+    }
+
+    .inline-num-wrap {
+      display: inline-flex; align-items: center;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 6px; padding: 3px 7px;
+      font-size: 13px; font-weight: 600; color: #fff;
+    }
+    .inline-num-input {
+      width: 40px; background: transparent; border: none;
+      color: #fff; font-size: 13px; font-weight: 700;
+      text-align: center; outline: none;
+      -moz-appearance: textfield;
+    }
+    .inline-num-input::-webkit-outer-spin-button,
+    .inline-num-input::-webkit-inner-spin-button {
+      -webkit-appearance: none; margin: 0;
+    }
+    .inline-num-input:focus {
+      background: #0a84ff; border-radius: 4px;
+    }
+
+    #slider-preview {
+      text-align: center;
+      font-size: 12px;
+      color: #64b5f6;
+      font-weight: 600;
+      height: 18px;
+      line-height: 18px;
+      margin-bottom: 4px;
+      pointer-events: none;
+    }
+    #progress-slider { width: 100%; margin-bottom: 12px; height: 24px; }
+
+    .setting-row {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; font-size: 13.5px;
+    }
+    .setting-row:last-child { margin-bottom: 0; }
+    .pill-group { display: flex; gap: 6px; align-items: center; }
+    .pill-btn {
+      padding: 6px 10px; border-radius: 7px; border: 1px solid #555;
+      background: #333; color: #fff; font-size: 12.5px;
+    }
+    .pill-btn.active { background: #0a84ff; border-color: #0a84ff; }
+    .theme-btn { width: 34px; height: 28px; border-radius: 7px; border: 2px solid #555; }
+    .theme-btn.active { border-color: #0a84ff; transform: scale(1.08); }
+  </style>
+</head>
+<body>
+
+  <!-- 1. TEK SEFERLİK GÜVENLİK KİLİDİ -->
+  <div id="lock-screen">
+    <h2>Okumapp</h2>
+    <p>Bu cihazı yetkilendirmek için erişim kodunu girin.</p>
+    <input type="password" inputmode="numeric" id="lock-input" placeholder="Erişim Kodu">
+    <button id="lock-btn" onclick="checkLock()">Giriş Yap</button>
+    <div id="lock-error"></div>
+  </div>
+
+  <!-- 2. İKİ BÖLÜMLÜ KÜTÜPHANE EKRANI (OKUNANLAR & TAMAMLANANLAR) -->
+  <div id="library-view">
+    <div class="lib-header">
+      <h1>Okumapp</h1>
+      <button class="add-btn" id="add-book-btn" onclick="document.getElementById('file-input').click()">+ Kitap Ekle</button>
+      <input type="file" id="file-input" accept=".epub,.pdf,application/epub+zip,application/pdf" onchange="handleFileUpload(event)">
+    </div>
+
+    <div class="shelves-container">
+      <!-- ÜST BÖLME: OKUNANLAR -->
+      <div class="shelf-section">
+        <div class="section-banner">
+          <span>OKUNANLAR</span>
+          <span class="section-count" id="reading-count">0</span>
+        </div>
+        <div class="book-grid" id="reading-grid">
+          <div class="empty-msg">Sağ üstten <b>+ Kitap Ekle</b> butonuna basarak kitap ekleyebilirsiniz.</div>
+        </div>
+      </div>
+
+      <!-- ALT BÖLME: TAMAMLANANLAR -->
+      <div class="shelf-section">
+        <div class="section-banner">
+          <span>TAMAMLANANLAR</span>
+          <span class="section-count" id="completed-count">0</span>
+        </div>
+        <div class="book-grid" id="completed-grid">
+          <div class="empty-msg">Henüz tamamlanan kitap yok. Bitirdiğiniz kitaplar kupa rozetiyle burada toplanır.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EN ALT KALICI İSTATİSTİK BANDI -->
+    <div class="stats-footer">
+      <div class="stat-line">
+        <span>Bu Ay Okunan Kitap Sayısı</span>
+        <span class="stat-num" id="stat-month-count">0</span>
+      </div>
+      <div class="stat-line">
+        <span>Toplam Okunan Kitap Sayısı</span>
+        <span class="stat-num" id="stat-total-count">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. OKUMA EKRANI -->
+  <div id="reader-view">
+    <div id="epub-viewer"></div>
+    <div id="pdf-viewer"></div>
+
+    <!-- Dokunma Alanları -->
+    <div id="tap-top" class="tap-zone" onclick="toggleMenus()"></div>
+    <div id="tap-center" class="tap-zone" onclick="toggleMenus()"></div>
+    <div id="tap-left" class="tap-zone" onclick="prevPage()"></div>
+    <div id="tap-right" class="tap-zone" onclick="nextPage()"></div>
+
+    <!-- Üst Menü -->
+    <div id="top-bar" class="reader-bar">
+      <button class="bar-btn" onclick="closeReader()">← Kitaplık</button>
+      <span id="reader-book-title" style="font-size:13px; max-width:44%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Kitap</span>
+      <div class="inline-num-wrap">
+        <input type="number" inputmode="numeric" id="page-num-input" class="inline-num-input" value="1" onchange="applyDirectPageInput(this.value)" onkeydown="if(event.key==='Enter'){this.blur();}">
+        <span id="page-total-label" style="color:#bbb; margin-left:2px;">/ 1</span>
+      </div>
+    </div>
+
+    <!-- Alt Ayar Menüsü -->
+    <div id="bottom-bar" class="reader-bar">
+      <div id="slider-preview">Sayfa 1 / 1</div>
+      <input type="range" id="progress-slider" min="1" max="100" value="1" oninput="previewSeek(this.value)" onchange="seekBook(this.value)">
+      
+      <div class="setting-row" id="pdf-mode-row" style="display:none;">
+        <span>PDF Modu</span>
+        <div class="pill-group">
+          <button class="pill-btn" id="btn-mode-page" onclick="setPdfMode('page')">Orijinal</button>
+          <button class="pill-btn" id="btn-auto-crop" onclick="toggleAutoCrop()">Kenar Kırp</button>
+          <button class="pill-btn" id="btn-mode-text" onclick="setPdfMode('text')">Metin Akışı</button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <span>Tema</span>
+        <div class="pill-group">
+          <button class="theme-btn" id="theme-light" title="Beyaz" style="background:#ffffff;" onclick="setTheme('light')"></button>
+          <button class="theme-btn" id="theme-soft-sepia" title="Hafif Sepya" style="background:#f9f3e3;" onclick="setTheme('soft-sepia')"></button>
+          <button class="theme-btn" id="theme-sepia" title="Belirgin Sepya" style="background:#ead8b1;" onclick="setTheme('sepia')"></button>
+          <button class="theme-btn" id="theme-dark" title="AMOLED Siyah" style="background:#000000;" onclick="setTheme('dark')"></button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <span>Yakınlaştır / Boyut</span>
+        <div class="pill-group">
+          <button class="pill-btn" onclick="changeFontSize(-10)">A-</button>
+          <div class="inline-num-wrap">
+            <input type="number" inputmode="numeric" id="zoom-num-input" class="inline-num-input" value="100" onchange="applyDirectZoomInput(this.value)" onkeydown="if(event.key==='Enter'){this.blur();}">
+            <span>%</span>
+          </div>
+          <button class="pill-btn" onclick="changeFontSize(10)">A+</button>
+        </div>
+      </div>
+
+      <div class="setting-row" id="align-row">
+        <span>Hizalama</span>
+        <div class="pill-group">
+          <button class="pill-btn" id="align-justify" onclick="setTextAlign('justify')">İki Yana</button>
+          <button class="pill-btn" id="align-left" onclick="setTextAlign('left')">Sola</button>
+          <button class="pill-btn" id="align-center" onclick="setTextAlign('center')">Ortala</button>
+        </div>
+      </div>
+
+      <div class="setting-row" id="line-height-row">
+        <span>Satır Aralığı</span>
+        <div class="pill-group">
+          <button class="pill-btn" onclick="changeLineHeight(-0.1)">Sıkı</button>
+          <button class="pill-btn" onclick="changeLineHeight(0.1)">Geniş</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const GIZLI_SIFRE = "1988";
+
+    function checkLock() {
+      const val = document.getElementById('lock-input').value.trim();
+      if (val === GIZLI_SIFRE) {
+        localStorage.setItem('okumapp_yetkili', 'evet');
+        document.getElementById('lock-screen').style.display = 'none';
+      } else {
+        document.getElementById('lock-error').innerText = "Hatalı erişim kodu!";
+      }
+    }
+
+    if (localStorage.getItem('okumapp_yetkili') === 'evet') {
+      document.getElementById('lock-screen').style.display = 'none';
+    }
+
+    function updateStatusBarColor(hex) {
+      const meta = document.getElementById('meta-theme-color');
+      if (meta) meta.setAttribute('content', hex);
+    }
+
+    // ==========================================
+    // KALICI OKUMA İSTATİSTİKLERİ
+    // ==========================================
+    function getCurrentMonthKey() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function getReadingStats() {
+      const curMonth = getCurrentMonthKey();
+      let stats = JSON.parse(localStorage.getItem('okumapp_istatistik')) || {
+        totalRead: 0,
+        monthKey: curMonth,
+        monthRead: 0
+      };
+      if (stats.monthKey !== curMonth) {
+        stats.monthKey = curMonth;
+        stats.monthRead = 0;
+        localStorage.setItem('okumapp_istatistik', JSON.stringify(stats));
+      }
+      return stats;
+    }
+
+    function incrementCompletionStats() {
+      const stats = getReadingStats();
+      stats.totalRead += 1;
+      stats.monthRead += 1;
+      localStorage.setItem('okumapp_istatistik', JSON.stringify(stats));
+      renderStatsFooter();
+    }
+
+    function renderStatsFooter() {
+      const stats = getReadingStats();
+      document.getElementById('stat-month-count').innerText = stats.monthRead;
+      document.getElementById('stat-total-count').innerText = stats.totalRead;
+    }
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    let db;
+    const req = indexedDB.open("OkumappDB", 1);
+    req.onupgradeneeded = (e) => {
+      db = e.target.result;
+      db.createObjectStore("books", { keyPath: "id" });
+    };
+    req.onsuccess = (e) => {
+      db = e.target.result;
+      renderLibrary();
+      renderStatsFooter();
+    };
+
+    let settings = JSON.parse(localStorage.getItem('okumapp_ayarlar')) || {
+      theme: 'soft-sepia',
+      fontSize: 100,
+      lineHeight: 1.4,
+      autoCrop: true,
+      textAlign: 'justify'
+    };
+
+    function saveSettings() {
+      localStorage.setItem('okumapp_ayarlar', JSON.stringify(settings));
+    }
+
+    const THEME_COLORS = {
+      'light':      { bg: '#ffffff', text: '#111111', r: 255, g: 255, b: 255, invert: false },
+      'soft-sepia': { bg: '#f9f3e3', text: '#241e16', r: 249, g: 243, b: 227, invert: false },
+      'sepia':      { bg: '#ead8b1', text: '#2b2013', r: 234, g: 216, b: 177, invert: false },
+      'dark':       { bg: '#000000', text: '#cccccc', r: 0,   g: 0,   b: 0,   invert: true }
+    };
+
+    const TROPHY_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffd54f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" fill="rgba(255,213,79,0.28)"/></svg>`;
+
+    async function extractPdfMetaAndCover(arrayBuffer) {
+      try {
+        const bufferCopy = arrayBuffer.slice(0);
+        const pdf = await pdfjsLib.getDocument({ data: bufferCopy }).promise;
+        const totalPages = pdf.numPages;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 0.6 });
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+        return { cover: canvas.toDataURL('image/jpeg', 0.85), totalPages };
+      } catch (err) {
+        return { cover: null, totalPages: 0 };
+      }
+    }
+
+    async function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const addBtn = document.getElementById('add-book-btn');
+      addBtn.innerText = "Ekleniyor...";
+      addBtn.disabled = true;
+
+      const id = Date.now().toString();
+      const isPdf = file.name.toLowerCase().endsWith('.pdf');
+      const arrayBuffer = await file.arrayBuffer();
+      let title = file.name.replace(/\.(epub|pdf)$/i, '').replace(/_/g, ' ');
+      let coverData = null;
+      let totalPages = 0;
+
+      if (isPdf) {
+        const info = await extractPdfMetaAndCover(arrayBuffer);
+        coverData = info.cover;
+        totalPages = info.totalPages;
+      } else {
+        try {
+          const book = ePub(arrayBuffer.slice(0));
+          const meta = await book.loaded.metadata;
+          if (meta.title) title = meta.title;
+          const coverUrl = await book.coverUrl();
+          if (coverUrl) {
+            const resp = await fetch(coverUrl);
+            const blob = await resp.blob();
+            coverData = await blobToBase64(blob);
+          }
+        } catch (err) {}
+      }
+
+      const bookRecord = {
+        id, title, type: isPdf ? 'pdf' : 'epub',
+        data: arrayBuffer, cover: coverData,
+        cfi: null, progress: 0,
+        pdfPage: 1, totalPages: totalPages,
+        completed: false,
+        countedInStats: false
+      };
+
+      const tx = db.transaction("books", "readwrite");
+      tx.objectStore("books").put(bookRecord);
+      tx.oncomplete = () => {
+        renderLibrary();
+        e.target.value = '';
+        addBtn.innerText = "+ Kitap Ekle";
+        addBtn.disabled = false;
+      };
+    }
+
+    function blobToBase64(blob) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    function createBookCardElement(b) {
+      const card = document.createElement('div');
+      card.className = 'book-card';
+      card.onclick = () => openBook(b.id);
+
+      let pct = b.progress || 0;
+      let fractionText = `%${pct}`;
+      const isDone = Boolean(b.completed);
+
+      if (b.type === 'pdf') {
+        const curP = b.pdfPage || 1;
+        const totP = b.totalPages || 0;
+        if (totP > 0) {
+          pct = isDone ? 100 : Math.min(100, Math.round((curP / totP) * 100));
+          fractionText = `${isDone ? totP : curP}/${totP}`;
+        } else {
+          fractionText = `${curP} s.`;
+        }
+      } else if (isDone) {
+        pct = 100;
+        fractionText = `%100`;
+      }
+
+      card.innerHTML = `
+        <button class="del-btn" onclick="deleteBook(event, '${b.id}')">✕</button>
+        <div class="cover-wrap">
+          ${b.cover 
+            ? `<img src="${b.cover}" class="book-cover">` 
+            : `<div class="book-cover-fallback">${b.title}</div>`}
+          <span class="format-badge">${b.type}</span>
+          ${isDone ? `<div class="trophy-badge" title="Tamamlandı">${TROPHY_SVG}</div>` : ''}
+        </div>
+        <div class="wood-shelf"></div>
+        <div class="progress-row">
+          <div class="progress-track">
+            <div class="progress-fill ${isDone ? 'done' : ''}" style="width:${pct}%;"></div>
+          </div>
+          <span class="progress-fraction">${fractionText}</span>
+        </div>
+        <div class="book-info">
+          <div class="book-title">${b.title}</div>
+          ${isDone ? `<button class="reread-btn" onclick="rereadBook(event, '${b.id}')">↻ Tekrar Oku</button>` : ''}
+        </div>
+      `;
+      return card;
+    }
+
+    function rereadBook(e, id) {
+      e.stopPropagation();
+      const tx = db.transaction("books", "readwrite");
+      const store = tx.objectStore("books");
+      store.get(id).onsuccess = (ev) => {
+        const book = ev.target.result;
+        if (!book) return;
+        book.completed = false;
+        book.countedInStats = false;
+        book.pdfPage = 1;
+        book.cfi = null;
+        book.progress = 0;
+        store.put(book);
+        tx.oncomplete = () => renderLibrary();
+      };
+    }
+
+    function renderLibrary() {
+      const tx = db.transaction("books", "readonly");
+      const store = tx.objectStore("books");
+      const getAll = store.getAll();
+
+      getAll.onsuccess = () => {
+        const books = getAll.result.reverse();
+        const readingGrid = document.getElementById('reading-grid');
+        const completedGrid = document.getElementById('completed-grid');
+
+        const readingBooks = books.filter(b => !b.completed);
+        const completedBooks = books.filter(b => b.completed);
+
+        document.getElementById('reading-count').innerText = readingBooks.length;
+        document.getElementById('completed-count').innerText = completedBooks.length;
+
+        if (readingBooks.length === 0) {
+          readingGrid.innerHTML = `<div class="empty-msg">Sağ üstten <b>+ Kitap Ekle</b> butonuna basarak kitap ekleyebilirsiniz.</div>`;
+        } else {
+          readingGrid.innerHTML = '';
+          readingBooks.forEach(b => readingGrid.appendChild(createBookCardElement(b)));
+        }
+
+        if (completedBooks.length === 0) {
+          completedGrid.innerHTML = `<div class="empty-msg">Henüz tamamlanan kitap yok. Bitirdiğiniz kitaplar kupa rozetiyle burada toplanır.</div>`;
+        } else {
+          completedGrid.innerHTML = '';
+          completedBooks.forEach(b => completedGrid.appendChild(createBookCardElement(b)));
+        }
+        renderStatsFooter();
+      };
+    }
+
+    function deleteBook(e, id) {
+      e.stopPropagation();
+      if (!confirm("Bu kitabı silmek istiyor musunuz?")) return;
+      const tx = db.transaction("books", "readwrite");
+      tx.objectStore("books").delete(id);
+      tx.oncomplete = () => renderLibrary();
+    }
+
+    function checkAndMarkCompleted() {
+      if (!currentBookRecord) return;
+      let reachedEnd = false;
+
+      if (currentBookRecord.type === 'pdf' && pdfDoc) {
+        if (currentPdfPage >= pdfDoc.numPages && pdfDoc.numPages > 0) {
+          reachedEnd = true;
+        }
+      } else if (currentBookRecord.type === 'epub') {
+        if ((currentBookRecord.progress || 0) >= 99) {
+          reachedEnd = true;
+        }
+      }
+
+      if (reachedEnd && !currentBookRecord.completed) {
+        currentBookRecord.completed = true;
+        if (!currentBookRecord.countedInStats) {
+          currentBookRecord.countedInStats = true;
+          incrementCompletionStats();
+        }
+      }
+    }
+
+    // ==========================================
+    // ANDROID GERİ TUŞU YÖNETİMİ
+    // ==========================================
+    window.addEventListener('popstate', () => {
+      if (document.getElementById('reader-view').style.display === 'flex') {
+        closeReader(true);
+      }
+    });
+
+    // ==========================================
+    // HİBRİT OKUMA MOTORU + PARMAKLA KAYDIRMA (SWIPE)
+    // ==========================================
+    let currentBook = null;
+    let rendition = null;
+    let currentBookRecord = null;
+    let pdfDoc = null;
+    let currentPdfPage = 1;
+    let pdfRenderMode = 'page';
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isMultiTouch = false;
+
+    const readerEl = document.getElementById('reader-view');
+    readerEl.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 1) {
+        isMultiTouch = true;
+        return;
+      }
+      isMultiTouch = false;
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    readerEl.addEventListener('touchend', (e) => {
+      if (isMultiTouch || e.changedTouches.length > 1) return;
+      if (window.visualViewport && window.visualViewport.scale > 1.05) return;
+
+      const dx = e.changedTouches[0].screenX - touchStartX;
+      const dy = e.changedTouches[0].screenY - touchStartY;
+
+      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        if (dx < 0) nextPage();
+        else prevPage();
+      }
+    }, { passive: true });
+
+    function bindEpubSwipe(renditionInstance) {
+      let startX = 0, startY = 0;
+      renditionInstance.on("touchstart", (e) => {
+        if (e.touches && e.touches.length === 1) {
+          startX = e.touches[0].screenX;
+          startY = e.touches[0].screenY;
+        }
+      });
+      renditionInstance.on("touchend", (e) => {
+        if (e.changedTouches && e.changedTouches.length === 1) {
+          const dx = e.changedTouches[0].screenX - startX;
+          const dy = e.changedTouches[0].screenY - startY;
+          if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+            if (dx < 0) nextPage();
+            else prevPage();
+          }
+        }
+      });
+    }
+
+    function openBook(id) {
+      const tx = db.transaction("books", "readonly");
+      tx.objectStore("books").get(id).onsuccess = async (e) => {
+        currentBookRecord = e.target.result;
+        history.pushState({ reading: true }, "");
+        document.getElementById('reader-view').style.display = 'flex';
+        document.getElementById('reader-book-title').innerText = currentBookRecord.title;
+        closeMenus();
+
+        if (currentBookRecord.type === 'epub') {
+          document.getElementById('pdf-mode-row').style.display = 'none';
+          document.getElementById('line-height-row').style.display = 'flex';
+          document.getElementById('align-row').style.display = 'flex';
+          document.getElementById('epub-viewer').style.display = 'block';
+          document.getElementById('pdf-viewer').style.display = 'none';
+          document.getElementById('epub-viewer').innerHTML = '';
+
+          const slider = document.getElementById('progress-slider');
+          slider.min = 0; slider.max = 100;
+
+          currentBook = ePub(currentBookRecord.data.slice(0));
+          rendition = currentBook.renderTo("epub-viewer", {
+            width: "100%", height: "100%", spread: "none", manager: "default"
+          });
+
+          bindEpubSwipe(rendition);
+          applyReaderStyles();
+          await rendition.display(currentBookRecord.cfi || undefined);
+
+          currentBook.ready.then(() => currentBook.locations.generate(1000)).then(() => {
+            updateProgressUI();
+          });
+
+          rendition.on("relocated", (location) => {
+            currentBookRecord.cfi = location.start.cfi;
+            if (currentBook.locations.total > 0) {
+              const pct = Math.round(currentBook.locations.percentageFromCfi(location.start.cfi) * 100);
+              currentBookRecord.progress = pct;
+            }
+            checkAndMarkCompleted();
+            saveBookProgress();
+            updateProgressUI();
+          });
+        } else {
+          document.getElementById('pdf-mode-row').style.display = 'flex';
+          document.getElementById('epub-viewer').style.display = 'none';
+          const pdfDiv = document.getElementById('pdf-viewer');
+          pdfDiv.style.display = 'block';
+          pdfDiv.innerHTML = "<div style='padding:20px; text-align:center;'>Sayfa hazırlanıyor...</div>";
+          applyReaderStyles();
+
+          pdfDoc = await pdfjsLib.getDocument({ data: currentBookRecord.data.slice(0) }).promise;
+          currentBookRecord.totalPages = pdfDoc.numPages;
+          currentPdfPage = currentBookRecord.pdfPage || 1;
+          pdfRenderMode = 'page';
+
+          const slider = document.getElementById('progress-slider');
+          slider.min = 1; slider.max = pdfDoc.numPages;
+
+          renderPdfPage();
+        }
+      };
+    }
+
+    function setPdfMode(mode) {
+      pdfRenderMode = mode;
+      renderPdfPage();
+    }
+
+    function toggleAutoCrop() {
+      settings.autoCrop = !settings.autoCrop;
+      saveSettings();
+      if (pdfRenderMode === 'page') renderPdfPage();
+    }
+
+    function hyphenateTurkish(text) {
+      const vowels = 'aeıioöuüAEIİOÖUÜ';
+      return text.replace(/[a-zA-ZçğıöşüÇĞİÖŞÜ]{6,}/g, (word) => {
+        let res = '';
+        for (let i = 0; i < word.length; i++) {
+          res += word[i];
+          if (i >= 1 && i < word.length - 2) {
+            const c0 = vowels.includes(word[i]);
+            const c1 = vowels.includes(word[i + 1]);
+            const c2 = vowels.includes(word[i + 2]);
+            if ((c0 && !c1 && c2) || (!c0 && !c1 && c2 && i >= 2)) {
+              res += '\u00AD';
+            }
+          }
+        }
+        return res;
+      });
+    }
+
+    function cleanTurkishPdfText(items) {
+      let raw = "";
+      let lastY = null;
+      for (const item of items) {
+        const y = item.transform ? item.transform[5] : 0;
+        if (lastY !== null && Math.abs(y - lastY) > 6) {
+          raw += "\n";
+        } else if (raw.length > 0 && !raw.endsWith(" ") && !raw.endsWith("-")) {
+          raw += " ";
+        }
+        raw += item.str;
+        lastY = y;
+      }
+      const cleaned = raw
+        .replace(/([a-zA-ZçğıöşüÇĞİÖŞÜ])-\s*\n\s*([a-zA-ZçğıöşüÇĞİÖŞÜ])/g, '$1$2')
+        .replace(/([a-zA-ZçğıöşüÇĞİÖŞÜ])-\s+([a-zçğıöşü])/g, '$1$2')
+        .replace(/\n+/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+
+      return hyphenateTurkish(cleaned);
+    }
+
+    function cropCanvasMargins(sourceCanvas) {
+      const ctx = sourceCanvas.getContext('2d');
+      const w = sourceCanvas.width;
+      const h = sourceCanvas.height;
+      const imgData = ctx.getImageData(0, 0, w, h).data;
+
+      let minX = w, minY = h, maxX = 0, maxY = 0;
+      let found = false;
+
+      for (let y = 0; y < h; y += 3) {
+        for (let x = 0; x < w; x += 3) {
+          const idx = (y * w + x) * 4;
+          const r = imgData[idx], g = imgData[idx + 1], b = imgData[idx + 2];
+          if (r < 235 || g < 235 || b < 235) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+            found = true;
+          }
+        }
+      }
+
+      if (!found || maxX <= minX || maxY <= minY) return sourceCanvas;
+
+      const pad = 16;
+      minX = Math.max(0, minX - pad);
+      minY = Math.max(0, minY - pad);
+      maxX = Math.min(w, maxX + pad);
+      maxY = Math.min(h, maxY + pad);
+
+      const cropW = maxX - minX;
+      const cropH = maxY - minY;
+      const cropped = document.createElement('canvas');
+      cropped.width = cropW;
+      cropped.height = cropH;
+      cropped.getContext('2d').drawImage(sourceCanvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+      return cropped;
+    }
+
+    function applyThemeTintToCanvas(canvas, themeKey) {
+      const t = THEME_COLORS[themeKey] || THEME_COLORS['soft-sepia'];
+      if (themeKey === 'light') return;
+
+      const ctx = canvas.getContext('2d');
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+
+      if (t.invert) {
+        for (let i = 0; i < data.length; i += 4) {
+          data[i]     = Math.round((255 - data[i]) * 0.82);
+          data[i + 1] = Math.round((255 - data[i + 1]) * 0.82);
+          data[i + 2] = Math.round((255 - data[i + 2]) * 0.82);
+        }
+      } else {
+        const tr = t.r / 255;
+        const tg = t.g / 255;
+        const tb = t.b / 255;
+        for (let i = 0; i < data.length; i += 4) {
+          data[i]     = Math.round(data[i] * tr);
+          data[i + 1] = Math.round(data[i + 1] * tg);
+          data[i + 2] = Math.round(data[i + 2] * tb);
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+    }
+
+    async function renderPdfPage() {
+      if (!pdfDoc) return;
+      const pdfDiv = document.getElementById('pdf-viewer');
+      const page = await pdfDoc.getPage(currentPdfPage);
+
+      document.getElementById('btn-mode-page').classList.toggle('active', pdfRenderMode === 'page');
+      document.getElementById('btn-mode-text').classList.toggle('active', pdfRenderMode === 'text');
+      document.getElementById('btn-auto-crop').classList.toggle('active', settings.autoCrop && pdfRenderMode === 'page');
+      document.getElementById('line-height-row').style.display = pdfRenderMode === 'text' ? 'flex' : 'none';
+      document.getElementById('align-row').style.display = pdfRenderMode === 'text' ? 'flex' : 'none';
+
+      if (pdfRenderMode === 'text') {
+        const textContent = await page.getTextContent();
+        const cleaned = cleanTurkishPdfText(textContent.items);
+        pdfDiv.innerHTML = `<div class="reflow-text-box" lang="tr" style="text-align:${settings.textAlign || 'justify'};">${cleaned || "Bu sayfada metin katmanı bulunamadı. 'Orijinal' modunu kullanın."}</div>`;
+      } else {
+        pdfDiv.innerHTML = `<div id="pdf-canvas-wrap"><canvas id="pdf-canvas"></canvas></div>`;
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+
+        const viewport = page.getViewport({ scale: 2.2 });
+        tempCanvas.width = viewport.width;
+        tempCanvas.height = viewport.height;
+        await page.render({ canvasContext: tempCtx, viewport: viewport }).promise;
+
+        const finalCanvas = settings.autoCrop ? cropCanvasMargins(tempCanvas) : tempCanvas;
+        applyThemeTintToCanvas(finalCanvas, settings.theme);
+
+        const displayCanvas = document.getElementById('pdf-canvas');
+        displayCanvas.width = finalCanvas.width;
+        displayCanvas.height = finalCanvas.height;
+        displayCanvas.getContext('2d').drawImage(finalCanvas, 0, 0);
+
+        const baseWidth = pdfDiv.clientWidth - 12;
+        const zoomedWidth = Math.round(baseWidth * (settings.fontSize / 100));
+        displayCanvas.style.width = zoomedWidth + "px";
+        displayCanvas.style.height = "auto";
+      }
+
+      pdfDiv.scrollTop = 0;
+      const pct = Math.round((currentPdfPage / pdfDoc.numPages) * 100);
+      currentBookRecord.pdfPage = currentPdfPage;
+      currentBookRecord.totalPages = pdfDoc.numPages;
+      currentBookRecord.progress = pct;
+
+      checkAndMarkCompleted();
+      saveBookProgress();
+      updateProgressUI();
+    }
+
+    function saveBookProgress() {
+      const tx = db.transaction("books", "readwrite");
+      tx.objectStore("books").put(currentBookRecord);
+    }
+
+    function updateProgressUI() {
+      const pct = currentBookRecord.progress || 0;
+      const slider = document.getElementById('progress-slider');
+      const preview = document.getElementById('slider-preview');
+      const pageInput = document.getElementById('page-num-input');
+      const totalLabel = document.getElementById('page-total-label');
+
+      if (currentBookRecord.type === 'pdf' && pdfDoc) {
+        pageInput.value = currentPdfPage;
+        totalLabel.innerText = `/ ${pdfDoc.numPages}`;
+        slider.value = currentPdfPage;
+        preview.innerText = `Sayfa ${currentPdfPage} / ${pdfDoc.numPages} (%${pct})`;
+      } else {
+        pageInput.value = pct;
+        totalLabel.innerText = `%`;
+        slider.value = pct;
+        preview.innerText = `İlerleme: %${pct}`;
+      }
+    }
+
+    function previewSeek(val) {
+      const preview = document.getElementById('slider-preview');
+      if (currentBookRecord.type === 'pdf' && pdfDoc) {
+        const p = parseInt(val, 10);
+        const pct = Math.round((p / pdfDoc.numPages) * 100);
+        preview.innerText = `Sayfa ${p} / ${pdfDoc.numPages} (%${pct})`;
+      } else {
+        preview.innerText = `İlerleme: %${val}`;
+      }
+    }
+
+    function seekBook(val) {
+      if (currentBookRecord.type === 'epub' && currentBook && rendition) {
+        const cfi = currentBook.locations.cfiFromPercentage(val / 100);
+        rendition.display(cfi);
+      } else if (pdfDoc) {
+        currentPdfPage = Math.max(1, Math.min(pdfDoc.numPages, parseInt(val, 10)));
+        renderPdfPage();
+      }
+    }
+
+    function applyDirectPageInput(val) {
+      const num = parseInt(val, 10);
+      if (currentBookRecord.type === 'pdf' && pdfDoc) {
+        if (!isNaN(num) && num >= 1 && num <= pdfDoc.numPages) {
+          currentPdfPage = num;
+          renderPdfPage();
+        } else {
+          document.getElementById('page-num-input').value = currentPdfPage;
+        }
+      } else if (currentBookRecord.type === 'epub' && currentBook && rendition) {
+        if (!isNaN(num) && num >= 0 && num <= 100) {
+          const cfi = currentBook.locations.cfiFromPercentage(num / 100);
+          rendition.display(cfi);
+        } else {
+          document.getElementById('page-num-input').value = currentBookRecord.progress || 0;
+        }
+      }
+    }
+
+    function applyDirectZoomInput(val) {
+      const num = parseInt(val, 10);
+      if (!isNaN(num) && num >= 80 && num <= 250) {
+        settings.fontSize = num;
+        saveSettings();
+        applyReaderStyles();
+        if (currentBookRecord && currentBookRecord.type === 'pdf') renderPdfPage();
+      } else {
+        document.getElementById('zoom-num-input').value = settings.fontSize;
+      }
+    }
+
+    function setTextAlign(align) {
+      settings.textAlign = align;
+      saveSettings();
+      applyReaderStyles();
+      if (currentBookRecord && currentBookRecord.type === 'pdf' && pdfRenderMode === 'text') {
+        renderPdfPage();
+      }
+    }
+
+    function nextPage() {
+      closeMenus();
+      if (currentBookRecord.type === 'epub' && rendition) rendition.next();
+      else if (pdfDoc && currentPdfPage < pdfDoc.numPages) { currentPdfPage++; renderPdfPage(); }
+    }
+
+    function prevPage() {
+      closeMenus();
+      if (currentBookRecord.type === 'epub' && rendition) rendition.prev();
+      else if (pdfDoc && currentPdfPage > 1) { currentPdfPage--; renderPdfPage(); }
+    }
+
+    function toggleMenus() {
+      document.getElementById('top-bar').classList.toggle('open');
+      document.getElementById('bottom-bar').classList.toggle('open');
+    }
+    function closeMenus() {
+      document.getElementById('top-bar').classList.remove('open');
+      document.getElementById('bottom-bar').classList.remove('open');
+    }
+    function closeReader(fromPopstate = false) {
+      document.getElementById('reader-view').style.display = 'none';
+      updateStatusBarColor('#432815');
+      if (currentBook) { currentBook.destroy(); currentBook = null; }
+      pdfDoc = null;
+      renderLibrary();
+      if (!fromPopstate && history.state && history.state.reading) {
+        history.back();
+      }
+    }
+
+    function setTheme(t) {
+      settings.theme = t;
+      saveSettings();
+      applyReaderStyles();
+      if (currentBookRecord && currentBookRecord.type === 'pdf') renderPdfPage();
+    }
+
+    function changeFontSize(delta) {
+      settings.fontSize = Math.max(80, Math.min(250, settings.fontSize + delta));
+      saveSettings();
+      applyReaderStyles();
+      if (currentBookRecord && currentBookRecord.type === 'pdf') renderPdfPage();
+    }
+
+    function changeLineHeight(delta) {
+      settings.lineHeight = Math.round((Math.max(1.1, Math.min(2.0, settings.lineHeight + delta))) * 10) / 10;
+      saveSettings();
+      applyReaderStyles();
+    }
+
+    function applyReaderStyles() {
+      document.getElementById('zoom-num-input').value = settings.fontSize;
+      
+      document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+      const activeThemeBtn = document.getElementById('theme-' + settings.theme);
+      if (activeThemeBtn) activeThemeBtn.classList.add('active');
+
+      const align = settings.textAlign || 'justify';
+      document.getElementById('align-justify').classList.toggle('active', align === 'justify');
+      document.getElementById('align-left').classList.toggle('active', align === 'left');
+      document.getElementById('align-center').classList.toggle('active', align === 'center');
+
+      const cur = THEME_COLORS[settings.theme] || THEME_COLORS['soft-sepia'];
+      document.body.style.background = cur.bg;
+      document.getElementById('reader-view').style.background = cur.bg;
+      document.getElementById('reader-view').style.color = cur.text;
+      document.getElementById('pdf-viewer').style.background = cur.bg;
+      updateStatusBarColor(cur.bg);
+
+      if (rendition) {
+        rendition.themes.default({
+          body: {
+            "background": `${cur.bg} !important`,
+            "color": `${cur.text} !important`,
+            "font-size": `${settings.fontSize}% !important`,
+            "line-height": `${settings.lineHeight} !important`,
+            "padding": "0 6px !important",
+            "margin": "0 !important",
+            "text-align": `${align} !important`,
+            "-webkit-hyphens": "auto",
+            "hyphens": "auto"
+          }
+        });
+      }
+      const pdfDiv = document.getElementById('pdf-viewer');
+      pdfDiv.style.fontSize = (16 * (settings.fontSize / 100)) + 'px';
+      pdfDiv.style.lineHeight = settings.lineHeight;
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+  </script>
+</body>
+</html>
